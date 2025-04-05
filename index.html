@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Stream Player</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            flex-direction: column;
+        }
+        .logo {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .logo img {
+            height: 100px;
+            width: auto;
+        }
+        .player-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 800px;
+            position: relative;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        .controls {
+            margin-bottom: 20px;
+        }
+        select, input {
+            padding: 10px;
+            margin: 10px 0;
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .video-wrapper {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        video {
+            width: 100%;
+            height: 100%;
+        }
+        #clappr-player {
+            width: 100%;
+            height: 100%;
+        }
+        .lang-switch {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 5px 10px;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            color: black;
+            transition: background 0.3s;
+        }
+        .lang-switch:hover {
+            background: #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <div class="logo">
+        <img src="https://i.imgur.com/eZPGLGc.png" alt="Logo">
+    </div>
+    <div class="player-container">
+        <div class="header" id="headerText">All-stream-player</div>
+        <button class="lang-switch" id="langButton" onclick="toggleLanguage()">ENG</button>
+        <div class="controls">
+            <input type="text" id="streamUrl" placeholder="Wprowadź adres źródła streamu (np. .m3u8)">
+            <select id="playerSelect" onchange="changePlayer()">
+                <option value="hls">HLS.js Player</option>
+                <option value="clappr">Clappr Player</option>
+                <option value="shaka">Shaka Player</option>
+            </select>
+            <button onclick="loadStream()" id="playButton">Odtwarzaj</button>
+        </div>
+        <div class="video-wrapper">
+            <video id="videoPlayer" controls></video>
+            <div id="clappr-player"></div>
+        </div>
+    </div>
+
+    <!-- Biblioteki odtwarzaczy -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/shaka-player.compiled.min.js"></script>
+
+    <script>
+        let currentPlayer = null;
+        const videoElement = document.getElementById('videoPlayer');
+        const clapprContainer = document.getElementById('clappr-player');
+        const playerSelect = document.getElementById('playerSelect');
+        const streamUrlInput = document.getElementById('streamUrl');
+        const langButton = document.getElementById('langButton');
+        const headerText = document.getElementById('headerText');
+        const playButton = document.getElementById('playButton');
+        let currentLang = 'pl';
+
+        function toggleLanguage() {
+            if (currentLang === 'pl') {
+                currentLang = 'eng';
+                langButton.textContent = 'PL';
+                headerText.textContent = 'All Stream Player';
+                playButton.textContent = 'Play';
+                streamUrlInput.placeholder = 'Enter stream source URL (e.g., .m3u8)';
+            } else {
+                currentLang = 'pl';
+                langButton.textContent = 'ENG';
+                headerText.textContent = 'All-stream-player';
+                playButton.textContent = 'Odtwarzaj';
+                streamUrlInput.placeholder = 'Wprowadź adres źródła streamu (np. .m3u8)';
+            }
+        }
+
+        function destroyCurrentPlayer() {
+            if (currentPlayer) {
+                if (currentPlayer.destroy) {
+                    currentPlayer.destroy();
+                } else if (currentPlayer.dispose) {
+                    currentPlayer.dispose();
+                }
+                currentPlayer = null;
+            }
+            videoElement.src = '';
+            videoElement.style.display = 'block';
+            clapprContainer.style.display = 'none';
+        }
+
+        function initPlayer(playerType) {
+            destroyCurrentPlayer();
+
+            if (playerType === 'hls') {
+                if (Hls.isSupported()) {
+                    currentPlayer = new Hls();
+                    currentPlayer.attachMedia(videoElement);
+                } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+                    // Natywna obsługa HLS
+                }
+            } 
+            else if (playerType === 'clappr') {
+                videoElement.style.display = 'none';
+                clapprContainer.style.display = 'block';
+                currentPlayer = new Clappr.Player({
+                    source: '',
+                    parentId: '#clappr-player',
+                    height: '100%',
+                    width: '100%',
+                    autoPlay: false
+                });
+            } 
+            else if (playerType === 'shaka') {
+                currentPlayer = new shaka.Player(videoElement);
+            }
+        }
+
+        function loadStream() {
+            const url = streamUrlInput.value;
+            const selectedPlayer = playerSelect.value;
+
+            if (!url) {
+                alert(currentLang === 'pl' ? 'Proszę wprowadzić adres źródła streamu!' : 'Please enter the stream source URL!');
+                return;
+            }
+
+            if (!currentPlayer) {
+                initPlayer(selectedPlayer);
+            }
+
+            if (selectedPlayer === 'hls') {
+                if (Hls.isSupported()) {
+                    currentPlayer.loadSource(url);
+                } else {
+                    videoElement.src = url;
+                }
+            } 
+            else if (selectedPlayer === 'clappr') {
+                currentPlayer.load(url);
+            } 
+            else if (selectedPlayer === 'shaka') {
+                currentPlayer.load(url).catch(error => {
+                    console.error('Błąd ładowania Shaka Player:', error);
+                    alert(currentLang === 'pl' ? 'Wystąpił błąd podczas ładowania streamu' : 'An error occurred while loading the stream');
+                });
+            }
+        }
+
+        function changePlayer() {
+            const selectedPlayer = playerSelect.value;
+            initPlayer(selectedPlayer);
+            if (streamUrlInput.value) {
+                loadStream();
+            }
+        }
+
+        // Inicjalizacja Shaka Player i domyślnego odtwarzacza
+        shaka.polyfill.installAll();
+        initPlayer(playerSelect.value);
+    </script>
+</body>
+</html>
